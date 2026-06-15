@@ -3,11 +3,11 @@
 
 {% block content %}
 
+
 <section class="section-content padding-y bg">
 <div class="container">
 
 <!-- ============================ COMPONENT 1 ================================= -->
-
 {% if not cart_items %}
 	<h2 class="text-center">Your Shopping Cart is Empty</h2>
 	<br>
@@ -29,22 +29,21 @@
 </thead>
 <tbody>
 
-
 {% for cart_item in cart_items %}
 <tr>
-  <td>
-    <figure class="itemside align-items-center">
-      <div class="aside"><img src="{{ cart_item.product.images.url }}" class="img-sm"></div>
-		<figcaption class="info">
-	       <a href="{{ cart_item.product.get_url }}" class="title text-dark">{{cart_item.product.product_name }}</a>
-			<p class="text-muted small">
-			    {% if cart_item.variations.all %}
+	<td>
+		<figure class="itemside align-items-center">
+			<div class="aside"><img src="{{ cart_item.product.images.url }}" class="img-sm"></div>
+			<figcaption class="info">
+				<a href="{{ cart_item.product.get_url }}" class="title text-dark">{{ cart_item.product.product_name }}</a>
+				<p class="text-muted small">
+					{% if cart_item.variations.all %}
 						{% for item in cart_item.variations.all %}
 							{{ item.variation_category | capfirst }} : {{ item.variation_value | capfirst }} <br>
 						{% endfor %}
 					{% endif %}
-		   </p>
-</figcaption>
+				</p>
+			</figcaption>
 		</figure>
 	</td>
 	<td>
