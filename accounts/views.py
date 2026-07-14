@@ -35,7 +35,7 @@ def register(request):
             # Create a user profile
             profile = UserProfile()
             profile.user_id = user.id
-            profile.profile_picture = 'default/default-user.png'
+            profile.profile_picture = 'default/default-user.jpeg'
             profile.save()
 
             # USER ACTIVATION
