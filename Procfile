@@ -1,0 +1,1 @@
+web: gunicorn k_kart.wsgi

@@ -5,10 +5,11 @@
 *.log
 *.pot
 *.pyc
-__pycache__/
+_pycache_/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+media/
 media
 
 # If your build process includes running collectstatic, then you probably don't need or want to include staticfiles/
@@ -122,7 +123,7 @@ ipython_config.py
 .pdm.toml
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
+_pypackages_/
 
 # Celery stuff
 celerybeat-schedule
@@ -132,12 +133,17 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+.venv/
 .env
 .venv
 env/
 venv/
 ENV/
+env/
+.env/
 env.bak/
+.vscode/
+.idea/
 venv.bak/
 
 # Spyder project settings
