@@ -1,1 +1,1 @@
-web: gunicorn k_kart.wsgi
+web: gunicorn k_kart.wsgi:application
