@@ -1,10 +1,20 @@
+
 from django.shortcuts import render
-from store.models import Product
+from django.http import HttpResponse
+import logging
+
+logger = logging.getLogger(__name__)
 
 def home(request):
-    products = Product.objects.all().filter(is_available=True)
-    
-    context = {
-        'products': products,
-    }
-    return render(request, 'home.html', context)
+    try:
+        from store.models import Product
+
+        products = Product.objects.filter(is_available=True)
+
+        return render(request, 'home.html', {
+            'products': products,
+        })
+
+    except Exception:
+        logger.exception("HOMEPAGE ERROR")
+        return HttpResponse("Homepage error. Please check Render logs.", status=500)
