@@ -9,6 +9,7 @@ __pycache__/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+media/
 media
 
 # If your build process includes running collectstatic, then you probably don't need or want to include staticfiles/
@@ -132,12 +133,17 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+.venv/
 .env
 .venv
 env/
 venv/
 ENV/
+env/
+.env/
 env.bak/
+.vscode/
+.idea/
 venv.bak/
 
 # Spyder project settings
