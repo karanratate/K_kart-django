@@ -188,6 +188,13 @@ cloudinary.config(
     secure=True
 )
 
+print("========== CLOUDINARY DEBUG ==========")
+print("Cloud Name Loaded:", bool(config('CLOUDINARY_CLOUD_NAME', default='')))
+print("API Key Loaded:", bool(config('CLOUDINARY_API_KEY', default='')))
+print("API Secret Loaded:", bool(config('CLOUDINARY_API_SECRET', default='')))
+print("SDK API Key Loaded:", bool(cloudinary.config().api_key))
+print("======================================")
+
 STORAGES = {
     'default': {
         'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage',
