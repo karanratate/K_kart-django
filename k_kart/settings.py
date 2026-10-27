@@ -175,18 +175,18 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # For Https Production
 
+CLOUDINARY_URL = os.getenv('CLOUDINARY_URL', '')
+
+cloudinary.config(
+    cloudinary_url=CLOUDINARY_URL,
+    secure=True
+)
+
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME', default=''),
     'API_KEY': config('CLOUDINARY_API_KEY', default=''),
     'API_SECRET': config('CLOUDINARY_API_SECRET', default=''),
 }
-
-cloudinary.config(
-    cloud_name=config('CLOUDINARY_CLOUD_NAME', default=''),
-    api_key=config('CLOUDINARY_API_KEY', default=''),
-    api_secret=config('CLOUDINARY_API_SECRET', default=''),
-    secure=True
-)
 
 print("========== CLOUDINARY DEBUG ==========")
 print("Cloud Name Loaded:", bool(config('CLOUDINARY_CLOUD_NAME', default='')))
