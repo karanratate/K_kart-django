@@ -175,26 +175,26 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # For Https Production
 
-CLOUDINARY_URL = os.getenv('CLOUDINARY_URL', '')
+# Cloudinary Configuration
+
+CLOUDINARY_CLOUD_NAME = config('CLOUDINARY_CLOUD_NAME', default='')
+CLOUDINARY_API_KEY = config('CLOUDINARY_API_KEY', default='')
+CLOUDINARY_API_SECRET = config('CLOUDINARY_API_SECRET', default='')
 
 cloudinary.config(
-    cloudinary_url=CLOUDINARY_URL,
+    cloud_name=CLOUDINARY_CLOUD_NAME,
+    api_key=CLOUDINARY_API_KEY,
+    api_secret=CLOUDINARY_API_SECRET,
     secure=True
 )
 
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME', default=''),
-    'API_KEY': config('CLOUDINARY_API_KEY', default=''),
-    'API_SECRET': config('CLOUDINARY_API_SECRET', default=''),
+    'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
+    'API_KEY': CLOUDINARY_API_KEY,
+    'API_SECRET': CLOUDINARY_API_SECRET,
 }
 
-print("========== CLOUDINARY DEBUG ==========")
-print("Cloud Name Loaded:", bool(config('CLOUDINARY_CLOUD_NAME', default='')))
-print("API Key Loaded:", bool(config('CLOUDINARY_API_KEY', default='')))
-print("API Secret Loaded:", bool(config('CLOUDINARY_API_SECRET', default='')))
-print("SDK API Key Loaded:", bool(cloudinary.config().api_key))
-print("======================================")
-
+print("Cloudinary SDK API Key Loaded:", bool(cloudinary.config().api_key))
 STORAGES = {
     'default': {
         'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage',
