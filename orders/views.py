@@ -1,90 +1,173 @@
+
 from django.shortcuts import render, redirect
-from django.http import HttpResponse, JsonResponse
-from carts.models import CartItem
-from .forms import OrderForm
-import datetime
-from .models import Order, Payment, OrderProduct
-import json
-from store.models import Product
+from django.http import JsonResponse
+from django.db import transaction
+from django.db.models import F
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
+from django.db import close_old_connections
+from threading import Thread
+from carts.models import CartItem
+from .forms import OrderForm
+from .models import Order, Payment, OrderProduct
+from store.models import Product
+import datetime
+import json
 
+
+
+def send_order_email(user_id, order_id):
+    try:
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        user = User.objects.get(id=user_id)
+        order = Order.objects.get(id=order_id)
+
+        message = render_to_string(
+            'orders/order_recieved_email.html',
+            {
+                'user': user,
+                'order': order,
+            }
+        )
+
+        email = EmailMessage(
+            'Thank you for your order!',
+            message,
+            to=[user.email],
+        )
+        email.content_subtype = 'html'
+        email.send(fail_silently=True)
+
+    except Exception as e:
+        print("Order email error:", str(e))
+
+    finally:
+        close_old_connections()
+
+
+@login_required
+@require_POST
 def payments(request):
-    body = json.loads(request.body)
-    order = Order.objects.get(
-        user=request.user,
-        is_ordered=False,
-        order_number=body['orderID']
-    )
+    try:
+        body = json.loads(request.body)
 
-    # Store transaction details inside Payment model
-    payment = Payment(
-        user=request.user,
-        payment_id=body['transID'],
-        payment_method=body['payment_method'],
-        amount_paid=order.order_total,
-        status=body['status'],
-    )
-    payment.save()
+        order_number = body.get('orderID')
+        trans_id = body.get('transID')
+        payment_method = body.get('payment_method')
+        payment_status = body.get('status')
 
-    order.payment = payment
-    order.is_ordered = True
-    order.save()
+        if not all([order_number, trans_id, payment_method]):
+            return JsonResponse(
+                {'error': 'Missing payment details'},
+                status=400
+            )
 
-    # Move the cart items to Order Product table
-    cart_items = CartItem.objects.filter(user=request.user)
+        # PayPal payment status check
+        if payment_status != 'COMPLETED':
+            return JsonResponse(
+                {'error': 'Payment is not completed'},
+                status=400
+            )
 
-    for item in cart_items:
-        orderproduct = OrderProduct()
-        orderproduct.order_id = order.id
-        orderproduct.payment = payment
-        orderproduct.user_id = request.user.id
-        orderproduct.product_id = item.product_id
-        orderproduct.quantity = item.quantity
-        orderproduct.product_price = item.product.price
-        orderproduct.ordered = True
-        orderproduct.save()
+        with transaction.atomic():
 
-        cart_item = CartItem.objects.get(id=item.id)
-        product_variation = cart_item.variations.all()
+            order = Order.objects.select_for_update().get(
+                user=request.user,
+                order_number=order_number
+            )
 
-        orderproduct = OrderProduct.objects.get(id=orderproduct.id)
-        orderproduct.variations.set(product_variation)
-        orderproduct.save()
+            # Handle duplicate confirmation request
+            if order.is_ordered:
+                if order.payment and order.payment.payment_id == trans_id:
+                    return JsonResponse({
+                        'order_number': order.order_number,
+                        'transID': order.payment.payment_id,
+                    })
 
-        # Reduce the quantity of the sold products
-        product = Product.objects.get(id=item.product_id)
-        product.stock -= item.quantity
-        product.save()
+                return JsonResponse(
+                    {'error': 'Order already processed'},
+                    status=409
+                )
 
-    # Clear cart
-    CartItem.objects.filter(user=request.user).delete()
+            payment = Payment.objects.create(
+                user=request.user,
+                payment_id=trans_id,
+                payment_method=payment_method,
+                amount_paid=order.order_total,
+                status=payment_status,
+            )
 
-    # Send order received email to customer
-    mail_subject = 'Thank you for your order!'
-    message = render_to_string('orders/order_recieved_email.html', {
-        'user': request.user,
-        'order': order,
-    })
+            cart_items = list(
+                CartItem.objects.filter(
+                    user=request.user
+                ).select_related('product').prefetch_related('variations')
+            )
 
-    to_email = request.user.email
+            if not cart_items:
+                raise ValueError("Cart is empty")
 
-    send_email = EmailMessage(
-        mail_subject,
-        message,
-        to=[to_email],
-    )
+            for item in cart_items:
+                orderproduct = OrderProduct.objects.create(
+                    order=order,
+                    payment=payment,
+                    user=request.user,
+                    product=item.product,
+                    quantity=item.quantity,
+                    product_price=item.product.price,
+                    ordered=True,
+                )
 
-    send_email.content_subtype = 'html'
-    send_email.send(fail_silently=True)
+                orderproduct.variations.set(item.variations.all())
 
-    # Send order number and transaction ID back to sendData method
-    data = {
-        'order_number': order.order_number,
-        'transID': payment.payment_id,
-    }
+                Product.objects.filter(
+                    id=item.product_id
+                ).update(
+                    stock=F('stock') - item.quantity
+                )
 
-    return JsonResponse(data)
+            order.payment = payment
+            order.is_ordered = True
+            order.save(update_fields=['payment', 'is_ordered'])
+
+            CartItem.objects.filter(
+                user=request.user
+            ).delete()
+
+        # Send email without making payment response wait
+        Thread(
+            target=send_order_email,
+            args=(request.user.id, order.id),
+            daemon=True
+        ).start()
+
+        return JsonResponse({
+            'order_number': order.order_number,
+            'transID': payment.payment_id,
+        })
+
+    except Order.DoesNotExist:
+        return JsonResponse(
+            {'error': 'Order not found'},
+            status=404
+        )
+
+    except (json.JSONDecodeError, ValueError) as e:
+        return JsonResponse(
+            {'error': str(e)},
+            status=400
+        )
+
+    except Exception as e:
+        print("Payment processing error:", str(e))
+        return JsonResponse(
+            {'error': 'Payment confirmation failed'},
+            status=500
+        )
+
 
 def place_order(request, total=0, quantity=0,):
     current_user = request.user
