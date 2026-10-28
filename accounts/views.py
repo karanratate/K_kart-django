@@ -18,9 +18,11 @@ from carts.views import _cart_id
 from carts.models import Cart, CartItem
 import requests
 
+
 def register(request):
     if request.method == 'POST':
         form = RegistrationForm(request.POST)
+
         if form.is_valid():
             first_name = form.cleaned_data['first_name']
             last_name = form.cleaned_data['last_name']
@@ -28,36 +30,69 @@ def register(request):
             email = form.cleaned_data['email']
             password = form.cleaned_data['password']
             username = email.split("@")[0]
-            user = Account.objects.create_user(first_name=first_name, last_name=last_name, email=email, username=username, password=password)
+
+            user = Account.objects.create_user(
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                username=username,
+                password=password
+            )
+
             user.phone_number = phone_number
+            user.is_active = False
             user.save()
-            
-            # Create a user profile
+
+            # Create user profile
             profile = UserProfile()
             profile.user_id = user.id
             profile.profile_picture = 'default/default-user.jpeg'
             profile.save()
 
-            # USER ACTIVATION
+            # Account activation email
             current_site = get_current_site(request)
             mail_subject = 'Please activate your account'
-            message = render_to_string('accounts/account_verification_email.html', {
-                'user': user,
-                'domain': current_site,
-                'uid': urlsafe_base64_encode(force_bytes(user.pk)),
-                'token': default_token_generator.make_token(user),
-            })
-            to_email = email
-            send_email = EmailMessage(mail_subject, message, to=[to_email])
-            send_email.send()
-            # messages.success(request, 'Thank you for registering with us. We have sent you a verification email to your email address [rathan.kumar@gmail.com]. Please verify it.')
-            return redirect('/accounts/login/?command=verification&email='+email)
-    else:        
+
+            message = render_to_string(
+                'accounts/account_verification_email.html',
+                {
+                    'user': user,
+                    'domain': current_site,
+                    'uid': urlsafe_base64_encode(force_bytes(user.pk)),
+                    'token': default_token_generator.make_token(user),
+                }
+            )
+
+            send_email = EmailMessage(
+                mail_subject,
+                message,
+                to=[email]
+            )
+
+            try:
+                send_email.send()
+                messages.success(
+                    request,
+                    'Registration successful! Please check your email to activate your account.'
+                )
+            except Exception as e:
+                print("Registration email failed:", str(e))
+                messages.warning(
+                    request,
+                    'Account created, but verification email could not be sent. Please contact support.'
+                )
+
+            return redirect('/accounts/login/?command=verification&email=' + email)
+
+    else:
         form = RegistrationForm()
+
     context = {
         'form': form,
     }
+
     return render(request, 'accounts/register.html', context)
+
 
 
 def login(request):
@@ -169,32 +204,58 @@ def dashboard(request):
     return render(request, 'accounts/dashboard.html', context)
 
 
+
 def forgotPassword(request):
     if request.method == 'POST':
         email = request.POST['email']
+
         if Account.objects.filter(email=email).exists():
             user = Account.objects.get(email__exact=email)
 
             # Reset password email
             current_site = get_current_site(request)
             mail_subject = 'Reset Your Password'
-            message = render_to_string('accounts/reset_password_email.html', {
-                'user': user,
-                'domain': current_site,
-                'uid': urlsafe_base64_encode(force_bytes(user.pk)),
-                'token': default_token_generator.make_token(user),
-            })
-            to_email = email
-            send_email = EmailMessage(mail_subject, message, to=[to_email])
-            send_email.send()
 
-            messages.success(request, 'Password reset email has been sent to your email address.')
+            message = render_to_string(
+                'accounts/reset_password_email.html',
+                {
+                    'user': user,
+                    'domain': current_site,
+                    'uid': urlsafe_base64_encode(force_bytes(user.pk)),
+                    'token': default_token_generator.make_token(user),
+                }
+            )
+
+            send_email = EmailMessage(
+                mail_subject,
+                message,
+                to=[email]
+            )
+
+            try:
+                send_email.send()
+
+                messages.success(
+                    request,
+                    'Password reset email has been sent to your email address.'
+                )
+
+            except Exception as e:
+                print("Password reset email failed:", str(e))
+
+                messages.error(
+                    request,
+                    'Email service is currently unavailable. Please try again later.'
+                )
+
             return redirect('login')
+
         else:
             messages.error(request, 'Account does not exist!')
             return redirect('forgotPassword')
-    
+
     return render(request, 'accounts/forgotPassword.html')
+
 
 
 def resetpassword_validate(request, uidb64, token):

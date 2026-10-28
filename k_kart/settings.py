@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     'orders',
     'cloudinary_storage',
     'cloudinary',
+    'anymail',
 
 ]
 
@@ -222,17 +223,20 @@ MESSAGE_TAGS = {
     messages.ERROR: 'danger',
 }
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 
 # SMTP configuration
-EMAIL_HOST = config('EMAIL_HOST', default='')
-EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+# Resend Email API Configuration
+EMAIL_BACKEND = 'anymail.backends.resend.EmailBackend'
 
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+ANYMAIL = {
+    'RESEND_API_KEY': config('RESEND_API_KEY', default=''),
+}
+
+DEFAULT_FROM_EMAIL = config(
+    'DEFAULT_FROM_EMAIL',
+    default='onboarding@resend.dev'
+)
 
 LOGGING = {
     'version': 1,
